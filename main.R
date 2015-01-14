@@ -61,6 +61,8 @@ plot(Gewata[[7]])
 plot(VCFpred)
 par(opar)
 
+#plot(VCFpred, col=rev( rainbow( 99, start=0,end=1 ) ), breaks=seq(min(minValue( VCFpred )),max(maxValue#(VCFpred)),length.out=100) ) 
+
 # legendVCF <- legend('topright', legend = c(1:100), col=rev( rainbow(99, start=0,end=100)))
 # seq(from = 0, to = 100, by = 10)
 
@@ -71,4 +73,8 @@ VCFresDF <- as.data.frame(VCFres)
 VCFresDF <- na.omit(VCFresDF)
 RMSE <- mean((VCFresDF**2)**0.5)
 RMSE
+
+# looking at RMSE's of different classes
+RS_VCFres <- (VCFres**2)**0.5
+zonal(RS_VCFres, z, fun='mean', digits=0, na.rm=TRUE, ...) 
 
