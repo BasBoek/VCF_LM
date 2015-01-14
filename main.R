@@ -1,4 +1,4 @@
-# Team Bastie
+# Team Bastei
 # January 13, 2015
 
 library(raster)
@@ -45,11 +45,6 @@ modelLM <- lm(VCF ~ band1 + band2 + band3 + band4 + band5 + band7, data = Gewata
 summary(modelLM)
 modelLM # shows model coefficients
 
-# EXTRA: RMSE calculation (of the multilinear regression model itself) (Bonus??)
-res <- modelLM$residuals
-RMSE <- mean((res**2)**0.5)
-RMSE # print RMSE
-
 # Make new VCF, based on prediction modelLM
 covs <- Gewata[[1:6]]
 names(covs)
@@ -57,24 +52,45 @@ VCFpred <- predict(covs, model = modelLM, na.rm = T)
 
 # Plot 'old' VCF and predicted VCF. MAKE LEGEND THE SAME
 opar <- par(mfrow=c(1, 2))
-plot(Gewata[[7]])
-plot(VCFpred)
+plot(Gewata[[7]], zlim = c(0,100))
+plot(VCFpred, zlim = c(0,100))
 par(opar)
 
-#plot(VCFpred, col=rev( rainbow( 99, start=0,end=1 ) ), breaks=seq(min(minValue( VCFpred )),max(maxValue#(VCFpred)),length.out=100) ) 
-
-# legendVCF <- legend('topright', legend = c(1:100), col=rev( rainbow(99, start=0,end=100)))
-# seq(from = 0, to = 100, by = 10)
-
+# Calculate differences between original VCF and predicted VCF and RMSE
 VCFres <- VCFpred - Gewata[[7]]
 plot(VCFres)
 
 VCFresDF <- as.data.frame(VCFres)
 VCFresDF <- na.omit(VCFresDF)
 RMSE <- mean((VCFresDF**2)**0.5)
-RMSE
+RMSE  # Tadaah!
+
+############################## CREATE TRAINING DATA ###################################
+
+load("data/trainingPoly.rda")
+
+# we can convert to integer by using the as.numeric() function, 
+# which takes the factor levels
+trainingPoly@data$Code <- as.numeric(trainingPoly@data$Class)
+
+# assign 'Code' values to raster cells (where they overlap)
+classes <- rasterize(trainingPoly, Gewata, field='Code')
+# define a colour scale for the classes (as above)
+# corresponding to: cropland, forest, wetland
+cols <- c("orange", "dark green", "light blue")
+# plot without a legend
+plot(classes, col=cols, legend=FALSE)
+# add a customized legend
+legend("topright", legend=c("cropland", "forest", "wetland"), fill=cols, bg="white")
+
+class(classes)
+(classes)
+
+####################### END OF CREATION TRAINING DATA #################################
 
 # looking at RMSE's of different classes
 RS_VCFres <- (VCFres**2)**0.5
-zonal(RS_VCFres, z, fun='mean', digits=0, na.rm=TRUE, ...) 
+zonal(RS_VCFres, classes, fun='mean', digits=0, na.rm=TRUE) 
+
+## CONLCUSION: RMSE indicates that modelLM predicts VCF with the highest precision/accuracy for class 'forest'. Wetland is worst predicted of the three classes based on the same model.
 
