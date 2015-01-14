@@ -43,11 +43,10 @@ GewataDF <- na.omit(GewataDF)
 # Then we run the multilinear regression model...
 modelLM <- lm(VCF ~ band1 + band2 + band3 + band4 + band5 + band7, data = GewataDF) 
 summary(modelLM)
-modelLM # shows model coefficients
+modelLM # model coefficients
 
 # Make new VCF, based on prediction modelLM
 covs <- Gewata[[1:6]]
-names(covs)
 VCFpred <- predict(covs, model = modelLM, na.rm = T)
 
 # Plot 'old' VCF and predicted VCF. MAKE LEGEND THE SAME
@@ -58,11 +57,11 @@ par(opar)
 
 # Calculate differences between original VCF and predicted VCF and RMSE
 VCFres <- VCFpred - Gewata[[7]]
-plot(VCFres)
+plot(VCFres, main = 'Residuals predicted - original')
 
 VCFresDF <- as.data.frame(VCFres)
 VCFresDF <- na.omit(VCFresDF)
-RMSE <- mean((VCFresDF**2)**0.5)
+RMSE <- (mean(VCFresDF**2))**0.5
 RMSE  # Tadaah!
 
 ############################## CREATE TRAINING DATA ###################################
@@ -83,14 +82,13 @@ plot(classes, col=cols, legend=FALSE)
 # add a customized legend
 legend("topright", legend=c("cropland", "forest", "wetland"), fill=cols, bg="white")
 
-class(classes)
-(classes)
-
 ####################### END OF CREATION TRAINING DATA #################################
 
 # looking at RMSE's of different classes
-RS_VCFres <- (VCFres**2)**0.5
-zonal(RS_VCFres, classes, fun='mean', digits=0, na.rm=TRUE) 
+RS_VCFres <- (VCFres**2)
+RMSEclass <- zonal(RS_VCFres, classes, fun='mean', digits=0, na.rm=TRUE)
+RMSEclass[,2] <- RMSEclass[,2]**0.5
+RMSEclass
 
 ## CONLCUSION: RMSE indicates that modelLM predicts VCF with the highest precision/accuracy for class 'forest'. Wetland is worst predicted of the three classes based on the same model.
 
