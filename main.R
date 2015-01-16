@@ -51,13 +51,13 @@ VCFpred <- predict(covs, model = modelLM, na.rm = T)
 
 # Plot 'old' VCF and predicted VCF. MAKE LEGEND THE SAME
 opar <- par(mfrow=c(1, 2))
-plot(Gewata[[7]], zlim = c(0,100))
-plot(VCFpred, zlim = c(0,100))
+plot(Gewata[[7]], zlim = c(0,100), main = 'VCF Original')
+plot(VCFpred, zlim = c(0,100), main = 'VCF Predicted')
 par(opar)
 
 # Calculate differences between original VCF and predicted VCF and RMSE
 VCFres <- VCFpred - Gewata[[7]]
-plot(VCFres, main = 'Residuals predicted - original')
+plot(VCFres, main = 'Residuals Predicted - Original')
 
 VCFresDF <- as.data.frame(VCFres)
 VCFresDF <- na.omit(VCFresDF)
@@ -88,7 +88,10 @@ legend("topright", legend=c("cropland", "forest", "wetland"), fill=cols, bg="whi
 RS_VCFres <- (VCFres**2)
 RMSEclass <- zonal(RS_VCFres, classes, fun='mean', digits=0, na.rm=TRUE)
 RMSEclass[,2] <- RMSEclass[,2]**0.5
-RMSEclass
+RMSE_Table <- as.data.frame(RMSEclass)
+labs <- c("Cropland", "Forest", "Wetland")
+RMSE_Table$zone <- labs
+barplot(RMSE_Table$mean, main = 'RMSEs per Class', ylim = c(0,12), names.arg = labs, col = cols, xlab = 'Land Class')
 
 ## CONLCUSION: RMSE indicates that modelLM predicts VCF with the highest precision/accuracy for class 'forest'. Wetland is worst predicted of the three classes based on the same model.
 
