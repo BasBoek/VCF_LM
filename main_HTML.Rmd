@@ -1,13 +1,27 @@
+
+
 ---
 title: "VCF linear model"
 author: "Bastei"
 date: "Friday, January 16, 2015"
 output: html_document
 ---
-  
-library(raster)
 
-# Loading Landsat files
+
+
+
+# Data exploration & preprocessing
+
+
+
+
+Loading required library
+```{r}
+library(raster)
+```
+
+Loading Landsat files:
+```{r}
 load("data/GewataB1.rda")
 load("data/GewataB2.rda")
 load("data/GewataB3.rda")
@@ -15,87 +29,163 @@ load("data/GewataB4.rda")
 load("data/GewataB5.rda")
 load("data/GewataB7.rda")
 load("data/vcfGewata.rda")
+
 Gewata <- stack(GewataB1,GewataB2,GewataB3,GewataB4,GewataB5,GewataB7, vcfGewata)
 names(Gewata) <- c('band1', 'band2', 'band3', 'band4', 'band5', 'band7', 'VCF')
+``` 
 
-# Histograms of Gewata show that in almost all bands outliers are present
+Histograms of Gewata show that in many bands outliers are present:
+```{r, echo=FALSE}
 hist(Gewata)
+```
+
+Clearing plot area
+```{r}
 dev.off()
-# Therefore, all values higher or lower than the mean - 5*sd are set to NA:
+```
+
+Therefore, all values higher or lower than the mean +/- 5*sd are set to NA:
+```{r}
 mean <- cellStats(x = Gewata, stat = 'mean')
 sd5 <- 5*(cellStats(x = Gewata, stat = 'sd'))
 lowerbound <- mean - sd5
 upperbound <- mean + sd5
 Gewata[Gewata > upperbound] <- NA
 Gewata[Gewata < lowerbound] <- NA
+```
 
-#New histograms
+The new histograms look much better:
+
+```{r, echo=FALSE}
 hist(Gewata)
+```
+
+Clearing plot area
+```{r}
 dev.off()
-hist(Gewata$VCF)
+```
 
-# plots that demonstrate the relationship between the Landsat bands and the VCF tree cover.
+Plots that demonstrate the relationship between the Landsat bands and the VCF tree cover:
+
+```{r,echo=FALSE}
 plot(Gewata[[1:6]], Gewata[[7]], maxpixels = 10000)
+```
 
-# we can conclude from the plots that band 4 does not seem to explain much of the variance in VCF, while the other bands seem to have a negative relationship with VCF.
+*From the plots we conclude that band 4 does not seem to explain much of the variance in VCF, while the other bands seem to have a negative relationship with VCF.*
 
 
-# First, we creata a dataframe without rows containing NA values
+We create a dataframe without rows containing NA values
+```{r}
 GewataDF <- as.data.frame(Gewata)
 GewataDF <- na.omit(GewataDF)
+```
 
-# Then we run the multilinear regression model...
+
+# Linear Model
+
+
+Creating multilinear model for VCF prediction based on bands as covariables 
+```{r} 
 modelLM <- lm(VCF ~ band1 + band2 + band3 + band4 + band5 + band7, data = GewataDF) 
+```
+model summary:
+```{r,echo=FALSE}
 summary(modelLM)
-modelLM # model coefficients
+```
+Model coefficients:
+```{r,echo=FALSE}
+modelLM
+```
 
-# Make new VCF, based on prediction modelLM
+
+# Model quality
+
+
+First, we make a new VCF raster, based on prediction modelLM:
+```{r}
 covs <- Gewata[[1:6]]
 VCFpred <- predict(covs, model = modelLM, na.rm = T)
+```
 
-# Plot 'old' VCF and predicted VCF. MAKE LEGEND THE SAME
+Comparison of original VCF map and predicted VCF map:
+
+```{r,echo=FALSE}
 opar <- par(mfrow=c(1, 2))
 plot(Gewata[[7]], zlim = c(0,100), main = 'VCF Original')
 plot(VCFpred, zlim = c(0,100), main = 'VCF Predicted')
 par(opar)
+```
 
-# Calculate differences between original VCF and predicted VCF and RMSE
+Calculation of differences between original VCF and predicted VCF and RMSE and its plot
+
+```{r}
 VCFres <- VCFpred - Gewata[[7]]
-plot(VCFres, main = 'Residuals Predicted - Original')
+```
 
+```{r,echo=FALSE}
+plot(VCFres, main = 'Residuals Predicted - Original')
+```
+
+**RMSE calculation**
+
+```{r}
 VCFresDF <- as.data.frame(VCFres)
 VCFresDF <- na.omit(VCFresDF)
 RMSE <- (mean(VCFresDF**2))**0.5
+```
+
+**Result**
+```{r,echo=FALSE}
 RMSE  # Tadaah!
+```
 
-############################## CREATE TRAINING DATA ###################################
 
+# Calculation RMSE per class
+
+
+Loading training data of classes:
+```{r}
 load("data/trainingPoly.rda")
+```
 
-# we can convert to integer by using the as.numeric() function, 
-# which takes the factor levels
+Converting classes to integer values:
+
+```{r}
 trainingPoly@data$Code <- as.numeric(trainingPoly@data$Class)
+```
 
-# assign 'Code' values to raster cells (where they overlap)
+Assigning 'Code' values to raster cells (where they overlap):
+```{r}
 classes <- rasterize(trainingPoly, Gewata, field='Code')
+```
+
+Map of training data
+```{r}
 # define a colour scale for the classes (as above)
 # corresponding to: cropland, forest, wetland
 cols <- c("orange", "dark green", "light blue")
-# plot without a legend
+
 plot(classes, col=cols, legend=FALSE)
 # add a customized legend
 legend("topright", legend=c("cropland", "forest", "wetland"), fill=cols, bg="white")
+```
 
-####################### END OF CREATION TRAINING DATA #################################
+**RMSE calculation per class** 
 
-# looking at RMSE's of different classes
+```{r}
 RS_VCFres <- (VCFres**2)
 RMSEclass <- zonal(RS_VCFres, classes, fun='mean', digits=0, na.rm=TRUE)
 RMSEclass[,2] <- RMSEclass[,2]**0.5
 RMSE_Table <- as.data.frame(RMSEclass)
 labs <- c("Cropland", "Forest", "Wetland")
 RMSE_Table$zone <- labs
+```
+
+Result:
+```{r, echo=FALSE}
+RMSE_Table
+
 barplot(RMSE_Table$mean, main = 'RMSEs per Class', ylim = c(0,12), names.arg = labs, col = cols, xlab = 'Land Class')
+```
 
-## CONLCUSION: RMSE indicates that modelLM predicts VCF with the highest precision/accuracy for class 'forest'. Wetland is worst predicted of the three classes based on the same model.
-
+**CONCLUSION: RMSE indicates that modelLM predicts VCF with the highest precision/accuracy for class 'forest'. Wetland is worst predicted of the three classes based on the same model.**
